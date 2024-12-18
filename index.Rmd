@@ -1,0 +1,532 @@
+---
+title: "Actividad 4.1. Comunicación con R Markdown"
+author:
+date:
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    collapsed: true
+    smooth_scroll: true
+    theme: journal
+    highlight: kate
+    df_print: paged
+    code_folding: show
+---
+![](logoUI.png)
+
+*Maestría en Inteligencia Artificial para la Transformación Digital*
+
+*Materia:* Lenguajes de ciencia de datos avanzado
+
+*Alumno:* Arturo López Ponce
+
+*Tutor:* Dr. Jonás Velasco Álvarez
+
+*Semestre:* 3er
+
+*Actividad:* 4.1. Comunicación con R Markdown.
+
+**4.1. Comunicación con R Markdown**
+
+Antes de realizar la presente actividad, se recomienda que el alumno revise los siguientes recursos educativos:
+
+
+- 4.1. Intro_Rmarkdown.pdf
+
+- 4.2. Guía de R Markdown
+
+Asimismo deberá estudiar los siguientes videos de YouTube:
+
+[1. Introducción a R Markdown:](https://youtu.be/6Qj8yBFgT9Q)
+
+[2. Cómo publicar proyectos en GitHub:](https://youtu.be/5BrGPmC7PPA)
+
+Los alumnos deberán completar las siguientes tareas:
+
+1. Retomar el proyecto realizado en la Unidad 3, que aborda el análisis exploratorio del conjunto de datos de llamadas al 911 en la CDMX. Escribir el proyecto utilizando R Markdown, integrando los elementos requeridos para una comunicación clara y profesional (consultar el Video 1 para orientación sobre R Markdown).
+
+2. Publicar el proyecto en un repositorio de GitHub para hacerlo accesible en línea (consultar el Video 2 para instrucciones detalladas sobre GitHub).
+
+
+Se deberá enviar en un archivo PDF el reporte de la actividad. El reporte debe describir el problema abordado y justificar su relevancia. Explicar las características principales de los datos utilizados, incluyendo su origen y estructura. Detallar los objetivos específicos de los análisis, como la identificación de patrones, comportamientos o tendencias relevantes, entre otros. Resumir los principales hallazgos obtenidos durante el análisis, destacando su significado. Incluir una reflexión sobre los conocimientos adquiridos durante la realización de la actividad y del curso. Plantear posibles proyectos o aplicaciones futuras relacionadas con el caso práctico u otros proyectos personales o académicos. Se debe incluir en el PDF un enlace (URL) al repositorio de GitHub donde está disponible el proyecto.
+
+
+# **Introducción**
+
+La actividad se llevó a cabo utilizando las siguientes librerías de R:
+
+- dplyr: Esta librería está diseñada para facilitar la manipulación y transformación de datos, enfocándose en la eficiencia y legibilidad del código. Proporciona funciones que trabajan directamente sobre estructuras de datos tabulares (data frames) o en su versión mejorada (tibbles).
+
+- tidyr: Específica para la limpieza y reorganización de datos, asegurando que estos estén en un formato "tidy" (ordenado), donde cada variable es una columna, cada observación es una fila y cada valor ocupa una celda.
+
+- lubridate: Facilita el manejo de fechas y horas, permitiendo la interpretación, manipulación y análisis de datos temporales con mayor facilidad.
+
+El análisis se realizó utilizando un conjunto de datos generado por las llamadas al 911 de la Ciudad de México, un servicio público que coordina la atención a la ciudadanía en temas relacionados con delitos, emergencias, faltas cívicas, servicios públicos y urgencias médicas. Se trabajó con tres archivos en formato CSV:
+
+- llamadas_911_2021_s1.csv: Primer semestre del año 2021.
+- llamadas_911_2021_s2.csv: Segundo semestre del año 2021.
+- llamadas_911_2022_s1.csv: Primer semestre del año 2022.
+
+Además, se proporciona la descripción de las variables contenidas en estos archivos.
+
+
+|No |	Variable |	Descripción o categorías |
+|---|----------|----------------------------------------------------------------|
+|1	|folio	|Folio|
+|2	|incidente_c4	|Tipo de incidente|
+|3	|fecha_creacion	|Fecha de apertura del folio del evento|
+|4	|hora_creacion	|Hora de apertura del folio del evento|
+|5	|mes_creacion	|Mes de apertura del folio del evento|
+|6	|año_creacion 	|Año de apertura del folio del evento|
+|7	|fecha_cierre	|Fecha de cierre del folio del evento|
+|8	|mes_cierre	|Mes de cierre del folio del evento|
+|9	|año_cierre	|Año de cierre del folio del evento|
+|10	|hora_cierre	|Hora de cierre del folio del evento|
+|11	|colonia	|Colonia donde se reportó inicialmente el incidente|
+|12	|manzana	|Manzana asignada donde se reportó el incidente|
+|13	|Latitud_centroide	|Latitud|
+|14	|Longitud_centroide	|Longitud|
+|15	|codigo_cierre	|Código que fue asignado al incidente en el cierre Afirmativo (A), |
+|   |        |Informativo (I), Negativo (N), Duplicado (D), Falso (F)|
+|16	|clas_con_f_alarma	|Clasificación del incidente|
+|17	|alcaldia_cierre	|Alcaldía donde cierra el folio del incidente|
+|18	|geometry 	|Polígono que describe los límites territoriales de una colonia |
+
+# Solución de problemas
+
+## *1. Agrupa los incidentes por mes y alcaldía, y calcula el número promedio de incidentes por categoría.*
+
+## Código en R
+
+### Procesamiento problema 1
+
+```{r warning=FALSE, message=FALSE}
+# Cargar librerías necesarias
+library(dplyr)
+library(lubridate)
+library(tidyr)
+library(ggplot2)
+
+# Definir los archivos de datos
+archivos <- c("llamadas_911_2021_s1.csv", "llamadas_911_2021_s2.csv")
+
+# Leer y unir los datos en un solo marco de datos
+datos <- archivos |>
+  lapply(read.csv) |>
+  bind_rows()
+
+# Asegurar que las fechas estén en el formato correcto
+datos <- datos |>
+  mutate(
+    fecha_creacion = as.Date(fecha_creacion, format = "%Y-%m-%d"),
+    fecha_cierre = as.Date(fecha_cierre, format = "%Y-%m-%d"),
+    mes_creacion = month(fecha_creacion, label = TRUE, abbr = TRUE),
+    año_creacion = year(fecha_creacion)
+  )
+
+# Agrupar los datos por mes y delegación
+resultado <- datos |>
+  group_by(mes_creacion, alcaldia_cierre) |>
+  summarize(
+    total_incidentes = n(), # cálculo del total de incidencias
+    .groups = "drop"
+  ) |>
+  group_by(mes_creacion, alcaldia_cierre) |>
+  mutate(
+    promedio_incidentes = total_incidentes / n() # cálculo del promedio de incidencias
+  )
+```
+
+### Información para graficar problema 1
+
+```{r warning=FALSE, message=FALSE}
+# Reorganizar los datos
+resultado_limpio <- resultado |>
+  select(mes_creacion, alcaldia_cierre, promedio_incidentes) |>
+  arrange(mes_creacion, alcaldia_cierre)
+resultado_limpio
+```
+
+### Gráfica problema 1
+
+```{r warning=FALSE, message=FALSE, fig.width=10, fig.height=8}
+# Graficación de los datos
+ggplot(resultado_limpio, aes(x = mes_creacion, y = promedio_incidentes, fill = mes_creacion)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_wrap(~ alcaldia_cierre) +
+  labs(
+    title = "Promedio de incidentes por Alcaldía y Mes para el año 2021",
+    x = "",
+    y = "Promedio de incidentes",
+    fill = "Meses"
+  ) +
+  theme_minimal() +
+  scale_x_discrete(labels = NULL)
+```
+
+### Conclusiones problema 1
+
+_Alcaldías con mayores promedios de incidentes:_
+
+- Iztapalapa se destaca como la alcaldía con los promedios más altos de incidentes en todos los meses, llegando a un promedio mensual superior a 20,000 incidentes en varios meses del año.
+
+- Gustavo A. Madero y Cuauhtémoc también muestran una alta incidencia promedio, manteniéndose consistentemente por encima de 10,000 incidentes en la mayoría de los meses.
+Alcaldías con menores promedios de incidentes:
+
+- Milpa Alta, Cuajimalpa de Morelos y Tláhuac presentan los promedios más bajos de incidentes. En el caso de Cuajimalpa, se observan valores especialmente bajos con registros de 1 o 2 incidentes promedio en algunos meses, lo que podría estar relacionado con errores en la captura de datos o características propias de la alcaldía (menor población o menor actividad).
+
+_Comportamiento mensual:_
+
+- En general, los incidentes muestran una ligera disminución durante los meses de verano (junio, julio y agosto) en la mayoría de las alcaldías. Esto podría estar asociado con vacaciones escolares o patrones de movilidad reducida.
+
+- Los meses de enero y septiembre destacan por registrar promedios más altos en varias alcaldías, indicando posibles picos de actividad.
+
+_Aspectos inusuales:_
+
+- Algunos datos, como los valores extremadamente bajos o nulos registrados en Cuajimalpa durante ciertos meses, podrían sugerir inconsistencias en los datos recolectados o diferencias en los criterios de registro.
+
+## *2. Identifica el día de la semana con más incidentes y determinar el total de llamadas para ese día.*
+
+## Código en R
+
+### Procesamiento problema 2
+
+```{r warning=FALSE, message=FALSE}
+# Cargar las librerías necesarias
+library(dplyr)
+library(lubridate)
+library(tidyr)
+
+# Definir la ruta de los archivos de datos
+archivos <- c("llamadas_911_2021_s1.csv", 
+              "llamadas_911_2021_s2.csv", 
+              "llamadas_911_2022_s1.csv")
+
+# Leer y unir los datos en un solo maro de datos
+datos <- archivos |>
+  lapply(read.csv) |>
+  bind_rows()
+
+# Asegurar que las fechas estén en el formato correcto
+datos <- datos |>
+  mutate(
+    fecha_creacion = as.Date(fecha_creacion, format = "%Y-%m-%d"),
+    dia_semana = wday(fecha_creacion, label = TRUE, abbr = FALSE) # Día de la semana
+  )
+```
+
+### Información para graficar problema 2
+
+```{r warning=FALSE, message=FALSE}
+# Agrupar los datos por día de la semana y realizar cálculos
+resultado_dias <- datos |>
+  group_by(dia_semana) |>
+  summarize(
+    total_llamadas = n(), # Total de llamadas por día
+    .groups = "drop"
+  ) |>
+  arrange(desc(total_llamadas)) # Ordenar de mayor a menor
+
+# Identificar el día con el mayor número de llamadas
+dia_max <- resultado_dias |>
+  filter(total_llamadas == max(total_llamadas)) |>
+  pull(dia_semana)
+resultado_dias
+```
+
+### Gráfica problema 2
+
+```{r warning=FALSE, message=FALSE, fig.width=6, fig.height=4}
+# Crear el gráfico de barras
+ggplot(resultado_dias, aes(x = dia_semana, y = total_llamadas, fill = dia_semana)) +
+  geom_bar(stat = "identity", show.legend = FALSE) +
+  scale_fill_manual(
+    values = c(
+      "domingo" = ifelse("domingo" == dia_max, "red", "steelblue"),
+      "lunes" = ifelse("lunes" == dia_max, "red", "steelblue"),
+      "martes" = ifelse("martes" == dia_max, "red", "steelblue"),
+      "miércoles" = ifelse("miércoles" == dia_max, "red", "steelblue"),
+      "jueves" = ifelse("jueves" == dia_max, "red", "steelblue"),
+      "viernes" = ifelse("viernes" == dia_max, "red", "steelblue"),
+      "sábado" = ifelse("sábado" == dia_max, "red", "steelblue")
+    )
+  ) +
+  geom_text(
+    aes(label = total_llamadas),
+    vjust = -0.5, size = 4
+  ) +
+  scale_y_continuous(
+    limits = c(0, 370000),
+    labels = scales::comma
+  ) +
+  labs(
+    title = "Total de llamadas al 911 por día de la semana",
+    subtitle = "Del enero del 2021 a Junio del 2022",
+    x = "Día de la semana",
+    y = "Total de llamadas"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+```
+
+### Conclusiones problema 2
+
+Con 325,184 llamadas, el sábado es el día con mayor cantidad de reportes al 911. Esto lo posiciona como el día más crítico en términos de demanda de servicios de emergencia.
+
+Le sigue de cerca el domingo, con 324,927 llamadas, apenas 257 llamadas menos que el sábado.
+
+Entre los días laborales, el viernes destaca con 241,517 llamadas, lo que sugiere una transición hacia el incremento observado durante el fin de semana.
+
+Los días lunes, jueves, miércoles y martes tienen una menor cantidad de llamadas, con un rango que va de 183,461 (martes) a 202,136 (lunes). Esto puede reflejar una menor incidencia de actividades sociales y un entorno más estructurado durante los días hábiles.
+
+Existe una brecha significativa entre el sábado (día con más llamadas) y el martes (día con menos llamadas), con una diferencia de 141,723 reportes. Este patrón indica una notable concentración de emergencias en los días cercanos al fin de semana.
+
+## *3. Crea un análisis temporal que muestre la distribución de incidentes por hora del día para las categorías "DELITO", "EMERGENCIA" y "URGENCIA MÉDICA". Utiliza gráficos adecuados para el análisis.*
+
+## Código en R
+
+### Procesamiento problema 3
+
+```{r warning=FALSE, message=FALSE}
+# Cargar las librerías necesarias
+library(dplyr)
+library(lubridate)
+library(ggplot2)
+
+# Definir la ruta de los archivos de datos
+archivos <- c("llamadas_911_2021_s1.csv", 
+              "llamadas_911_2021_s2.csv", 
+              "llamadas_911_2022_s1.csv")
+
+# Leer y unir los datos en un solo dataframe
+datos <- archivos |>
+  lapply(read.csv) |>
+  bind_rows()
+
+# Asegurar que las fechas y horas estén en el formato correcto
+datos <- datos |>
+  mutate(
+    hora_creacion = hour(hms(hora_creacion)), # Extraer la hora en formato numérico
+    categoria = case_when(
+      clas_con_f_alarma %in% c("DELITO", "EMERGENCIA", "URGENCIAS MEDICAS") ~ clas_con_f_alarma,
+      TRUE ~ NA_character_
+    )
+  ) |>
+  filter(!is.na(categoria)) # Filtrar solo las categorías relevantes
+```
+
+### Información para graficar problema 3
+
+```{r warning=FALSE, message=FALSE}
+# Agrupar los datos por categoría y hora
+distribucion_horas <- datos |>
+  group_by(categoria, hora_creacion) |>
+  summarize(
+    total_incidentes = n(), # Total de incidentes por hora y categoría
+    .groups = "drop"
+  )
+```
+
+### Gráfica problema 3
+
+```{r warning=FALSE, message=FALSE, fig.width=10, fig.height=8}
+# Crear un gráfico para visualizar la distribución
+ggplot(distribucion_horas, aes(x = hora_creacion, y = total_incidentes, color = categoria)) +
+  geom_line(linewidth = 1) + # Usar linewidth en lugar de size para las líneas
+  geom_point(size = 2) +
+  labs(
+    title = "Distribución de Incidentes por Hora del Día",
+    x = "Hora del Día",
+    y = "Total de Incidentes",
+    color = "Categoría"
+  ) +
+  scale_y_continuous(
+    limits = c(0, 30000),
+    labels = scales::comma
+  ) +
+  theme_minimal() +
+  scale_x_continuous(breaks = 0:23, labels = 0:23) +
+  scale_color_manual(values = c("DELITO" = "red", "EMERGENCIA" = "blue", "URGENCIAS MEDICAS" = "green"))
+```
+
+### Conclusiones problema 3
+
+La frecuencia de los incidentes clasificados como "DELITO" presenta una curva que aumenta gradualmente a partir de las primeras horas de la mañana y alcanza su punto máximo entre las 20:00 y las 22:00 horas. Posteriormente, comienza a disminuir, pero los valores en las últimas horas del día (23:00 y 00:00 horas) siguen siendo elevados.
+
+Los incidentes de Emergencias tienen un incremento constante desde las primeras horas de la madrugada y alcanzan su punto máximo entre las 10:00 y las 20:00 horas. Posteriormente, decrecen de manera sostenida durante la noche.
+
+En comparación con las otras categorías, los incidentes clasificados como Urgencias Médicas muestran una curva más estable. Hay un incremento gradual desde la madrugada, alcanzando su punto máximo entre las 14:00 y 16:00 horas, seguido de una ligera disminución durante la noche. Sin embargo, la frecuencia se mantiene relativamente alta durante la mayor parte del día.
+
+## *4.	Calcula el tiempo promedio entre la creación y cierre del incidente (usa fecha_creacion y fecha_cierre). Así mismo, determinar el tiempo mínimo y máximo.*
+
+## Código en R
+
+### Procesamiento problema 4
+
+```{r warning=FALSE, message=FALSE}
+# Cargar las librerías necesarias
+library(dplyr)
+library(lubridate)
+
+convertir <- function(minutos) {
+  # Constantes para conversiones
+  minutos_por_hora <- 60
+  minutos_por_dia <- 60 * 24
+  minutos_por_año <- 60 * 24 * 365
+
+  # Calcular años, días, horas y minutos
+  años <- floor(minutos / minutos_por_año)
+  minutos_restantes <- minutos %% minutos_por_año
+  
+  días <- floor(minutos_restantes / minutos_por_dia)
+  minutos_restantes <- minutos_restantes %% minutos_por_dia
+  
+  horas <- floor(minutos_restantes / minutos_por_hora)
+  minutos_restantes <- as.integer(minutos_restantes %% minutos_por_hora)
+  
+  # Crear la cadena de salida
+  resultado <- paste(ifelse(años != 0, sprintf("%g años", años), ""),
+                     ifelse(días != 0, sprintf("%g días", días), ""),
+                     ifelse(horas != 0, sprintf("%g horas", horas), ""),
+                     sprintf("%g minutos", minutos_restantes), "")
+  
+  return(resultado)
+}
+
+# Definir la ruta de los archivos de datos
+archivos <- c("llamadas_911_2021_s1.csv", 
+              "llamadas_911_2021_s2.csv", 
+              "llamadas_911_2022_s1.csv")
+
+# Leer y unir los datos en un solo dataframe
+datos <- archivos |>
+  lapply(read.csv) |>
+  bind_rows()
+
+# Asegurar que las fechas estén en el formato correcto
+datos <- datos |>
+  mutate(
+    fecha_creacion = as.Date(fecha_creacion, format = "%Y-%m-%d"),
+    fecha_cierre = as.Date(fecha_cierre, format = "%Y-%m-%d"),
+    tiempo_resolucion_mins = as.numeric(difftime(fecha_cierre, fecha_creacion, units = "mins")) # Tiempo en minutos
+  ) |>
+  filter(!is.na(tiempo_resolucion_mins) & tiempo_resolucion_mins >= 0) # Filtrar datos inválidos
+
+# Calcular el tiempo promedio, mínimo y máximo
+resultados <- datos |>
+  summarize(
+    tiempo_promedio = mean(tiempo_resolucion_mins, na.rm = TRUE),
+    tiempo_minimo = min(tiempo_resolucion_mins, na.rm = TRUE),
+    tiempo_maximo = max(tiempo_resolucion_mins, na.rm = TRUE)
+  )
+
+# Aplicar la función convertir a cada elemento de los resultados
+resultados_convertidos <- sapply(resultados, convertir)
+```
+
+### Resultados problema 4
+
+```{r warning=FALSE, message=FALSE}
+# Mostrar los resultados
+tiempos <- paste("Resultados:\n", "Tiempo promedio de resolución:", resultados_convertidos["tiempo_promedio"], "\n","Tiempo mínimo de resolución:", resultados_convertidos["tiempo_minimo"], "\n","Tiempo máximo de resolución:", resultados_convertidos["tiempo_maximo"], "\n")
+cat(tiempos)
+```
+
+### Conclusiones problema 4
+
+El tiempo promedio entre la creación y el cierre de un incidente fue de 3 horas y 19 minutos. Esto indica que, en términos generales, las solicitudes de atención registradas en el sistema se resolvieron en un tiempo razonablemente corto, considerando la complejidad y diversidad de los casos atendidos. Este dato sugiere una eficiencia operativa promedio adecuada para la gestión de emergencias.
+
+El tiempo mínimo de resolución registrado fue de 0 minutos. Esto podría deberse a incidentes clasificados como duplicados o falsos positivos, los cuales pueden ser cerrados inmediatamente tras su registro sin requerir intervención adicional. También podría reflejar casos donde el incidente fue resuelto o registrado erróneamente en el sistema.
+
+El tiempo máximo observado fue de 2 años y 24 días. Este resultado excepcionalmente alto merece una evaluación adicional, ya que podría deberse a errores en el registro de datos, como fechas incorrectas de cierre o casos atípicos que permanecieron abiertos por largos períodos debido a complicaciones administrativas, legales o técnicas.
+
+## *5. Determinar el porcentaje de llamadas que fueron clasificadas como "Falsa Alarma".*
+
+## Código en R
+
+### Procesamiento problema 5
+
+```{r warning=FALSE, message=FALSE}
+# Cargar las librerías necesarias
+library(dplyr)
+library(ggplot2)
+
+# Definir la ruta de los archivos de datos
+archivos <- c("llamadas_911_2021_s1.csv", 
+              "llamadas_911_2021_s2.csv", 
+              "llamadas_911_2022_s1.csv")
+
+# Leer y unir los datos en un solo marco de datos
+datos <- archivos |>
+  lapply(read.csv) |>
+  bind_rows()
+
+# Agrupar los datos por clasificación
+resultado <- datos |>
+  group_by(clas_con_f_alarma) |>
+  summarize(
+    total_clasificacion = n() # cálculo de incidencias
+  )
+
+# Calcular la suma de total de incidencias
+suma_total <- sum(resultado$total_clasificacion, na.rm = TRUE)
+```
+
+### Información para graficar problema 5
+
+```{r warning=FALSE, message=FALSE}
+# Calcular el porcentaje de la clasificación
+resultado <- resultado |>
+  mutate(
+    porcentaje = total_clasificacion / suma_total * 100,
+    color = ifelse(clas_con_f_alarma == "FALSA ALARMA", "red", "steelblue") # Definir colores
+  )
+resultado
+```
+
+### Gráfica problema 5
+
+```{r warning=FALSE, message=FALSE, fig.width=6, fig.height=4}
+# Graficar los datos en barras
+ggplot(resultado, aes(x = clas_con_f_alarma, y = porcentaje, fill = color)) +
+  geom_bar(stat = "identity", show.legend = FALSE) +
+  scale_fill_manual(
+    values = ifelse(resultado$clas_con_f_alarma == "FALSA ALARMA", "red", "steelblue")
+  ) +
+  geom_text(
+    aes(label = sprintf("%.2f%%", porcentaje)), # Formatear porcentaje con dos decimales
+    vjust = -0.5, # Posición vertical encima de la barra
+    size = 3.5 # Tamaño del texto
+  ) +
+  scale_y_continuous(limits = c(0, 35)) + # Utilizar colores definidos en la columna 'color'
+  labs(
+    title = "Porcentaje de Clasificación de Incidencias",
+    x = "Clasificación",
+    y = "Porcentaje"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1) # Rotar etiquetas del eje x
+  )
+```
+
+### Conclusiones problema 5
+
+La clasificación predominante es "Servicios" con un 27.67%, seguida de "Falta Cívica" con un 25.91% y "Delito" en tercer lugar con un 22.59%. Estas tres principales categorías representan más del 75% de las llamadas al 911. Le siguen "Urgencias Médicas" con un 15.26% y "Emergencias" con un 8.54%. Aunque no se encuentran entre las principales, su proporción considerable resalta la importancia de los servicios de respuesta inmediata en contextos médicos o situaciones críticas. Finalmente, "Falsa Alarma" con un 0.03% muestra un impacto mínimo en términos de volumen. Sin embargo, su existencia subraya la necesidad de campañas de concientización para evitar el abuso del sistema y maximizar su eficacia.
+
+### Conclusiones Generales
+
+Una vez realizado el análisis exploratorio utilizando las librerías dplyr, lubridate y tidyr sobre el conjunto de datos de llamadas al 911 de la Ciudad de México, se identificaron patrones de incidentes que pueden estar influenciados por factores socioeconómicos o estacionales en el primer problema. Además, la corrección de la clasificación de "Falta Cívica" permitió un análisis más preciso y coherente de los datos. El segundo problema proporcionó una perspectiva útil para identificar los días más activos de la semana en cuanto a llamadas al 911. En el tercer problema, se identificaron las horas críticas para las categorías "Delito", "Emergencia" y "Urgencia Médica". En el cuarto problema, se identificaron áreas donde los tiempos de respuesta podrían mejorarse. Finalmente, en el quinto problema, aprendimos que la detección y manejo de falsas alarmas es esencial para optimizar los recursos disponibles y asegurar una respuesta más efectiva a incidentes reales.
+
+El análisis reveló que aún existe la necesidad de realizar estudios más profundos para comprender mejor las características y peculiaridades de cada alcaldía. Esto incluye ajustar los métodos de recolección y clasificación de datos, así como evaluar la efectividad de las intervenciones para cada tipo de incidente.
+
+Es fundamental realizar ajustes basados en los resultados del análisis para mejorar la calidad de los datos y la eficiencia del sistema de respuesta a emergencias. Este tipo de análisis y el uso de herramientas estadísticas y gráficas no solo enriquecen la comprensión de los datos, sino que también guían la toma de decisiones informadas en la gestión de emergencias y la planificación.
+
+
+
+
+
